@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"sync"
 )
@@ -85,6 +86,11 @@ func (t *TCPTransport) startAcceptLoop() error {
 func (t *TCPTransport) handleConn(conn net.Conn) {
 	var err error
 	defer func() {
+		if err == io.EOF {
+			fmt.Printf("connection closed by peer: %v\n", conn.RemoteAddr())
+			conn.Close()
+			return
+		}
 		fmt.Printf("dropping peer connection: %v\n", err)
 		conn.Close()
 	}()
