@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"testing"
 )
@@ -10,29 +11,89 @@ func TestPathTransformFunc(t *testing.T) {
 	key := "keyforimage"
 	path := CASPathTransformFunc(key)
 	expectedPathname := "917e9/58f55/1206b/ae6ad/e690a/955d0/7f1fe/ff303"
-	expectedOriginalKey := "917e958f551206bae6ade690a955d07f1feff303"
+	expectedFilename := "917e958f551206bae6ade690a955d07f1feff303"
 
 	if path.PathName != expectedPathname {
-		t.Fatal("pathname mismatch")
+		t.Error("pathname mismatch")
 	}
 
-	if path.Original != expectedOriginalKey {
-		t.Fatal("original key mismatch")
+	if path.FileName != expectedFilename {
+		t.Error("original key mismatch")
 	}
 }
 
-func TestStorre(t *testing.T) {
+func TestStore(t *testing.T) {
 	defer func() {
-		os.RemoveAll("77c47")
+		os.RemoveAll("tests")
 	}()
 
 	opts := StoreOpts{
+		Root:              "tests",
 		PathTransformFunc: CASPathTransformFunc,
 	}
 	s := NewStore(opts)
+	key := "keyforimage"
+	data := []byte("some jpg bytes")
 
-	r := bytes.NewReader([]byte("some jpg bytes"))
-	if err := s.writeStream("someimage", r); err != nil {
-		t.Fatal(err)
+	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+		t.Error(err)
+	}
+
+	r, err := s.readStream(key)
+	if err != nil {
+		t.Error(err)
+	}
+
+	b, err := io.ReadAll(r)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !bytes.Equal(b, data) {
+		t.Error("data mismatch")
+	}
+
+}
+
+func TestDelete(t *testing.T) {
+	opts := StoreOpts{
+		Root:              "tests",
+		PathTransformFunc: CASPathTransformFunc,
+	}
+	s := NewStore(opts)
+	key := "keyforimage"
+	data := []byte("some jpg bytes")
+
+	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+		t.Error(err)
+	}
+
+	if err := s.Delete(key); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHas(t *testing.T) {
+	defer func() {
+		os.RemoveAll("tests")
+	}()
+	opts := StoreOpts{
+		Root:              "tests",
+		PathTransformFunc: CASPathTransformFunc,
+	}
+	s := NewStore(opts)
+	key := "keyforimage"
+	data := []byte("some jpg bytes")
+
+	if s.Has(key) {
+		t.Error("expected to not have key")
+	}
+
+	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+		t.Error(err)
+	}
+
+	if !s.Has(key) {
+		t.Error("expected to have key")
 	}
 }
