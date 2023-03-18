@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"io"
 	"io/fs"
 	"log"
@@ -83,13 +84,13 @@ func (s *Store) fullPathWithRoot(key string) string {
 	return filepath.Join(s.Root, pathKey.FilePath())
 }
 
-func (s *Store) Has(key string) bool {
-	fi, err := os.Stat(s.fullPathWithRoot(key))
-	if err == fs.ErrNotExist || fi == nil {
-		return false
-	}
+func (s *Store) Clear() error {
+	return os.RemoveAll(s.Root)
+}
 
-	return true
+func (s *Store) Has(key string) bool {
+	_, err := os.Stat(s.fullPathWithRoot(key))
+	return !errors.Is(err, fs.ErrNotExist)
 }
 
 func (s *Store) Delete(key string) error {

@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"io"
-	"os"
 	"testing"
 )
 
@@ -23,15 +22,10 @@ func TestPathTransformFunc(t *testing.T) {
 }
 
 func TestStore(t *testing.T) {
-	defer func() {
-		os.RemoveAll("tests")
-	}()
+	s := newTestStore()
 
-	opts := StoreOpts{
-		Root:              "tests",
-		PathTransformFunc: CASPathTransformFunc,
-	}
-	s := NewStore(opts)
+	defer tearDown(t, s)
+
 	key := "keyforimage"
 	data := []byte("some jpg bytes")
 
@@ -56,11 +50,10 @@ func TestStore(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	opts := StoreOpts{
-		Root:              "tests",
-		PathTransformFunc: CASPathTransformFunc,
-	}
-	s := NewStore(opts)
+	s := newTestStore()
+
+	defer tearDown(t, s)
+
 	key := "keyforimage"
 	data := []byte("some jpg bytes")
 
@@ -74,14 +67,10 @@ func TestDelete(t *testing.T) {
 }
 
 func TestHas(t *testing.T) {
-	defer func() {
-		os.RemoveAll("tests")
-	}()
-	opts := StoreOpts{
-		Root:              "tests",
-		PathTransformFunc: CASPathTransformFunc,
-	}
-	s := NewStore(opts)
+	s := newTestStore()
+
+	defer tearDown(t, s)
+
 	key := "keyforimage"
 	data := []byte("some jpg bytes")
 
@@ -95,5 +84,19 @@ func TestHas(t *testing.T) {
 
 	if !s.Has(key) {
 		t.Error("expected to have key")
+	}
+}
+
+func newTestStore() *Store {
+	opts := StoreOpts{
+		Root:              "tests",
+		PathTransformFunc: CASPathTransformFunc,
+	}
+	return NewStore(opts)
+}
+
+func tearDown(t *testing.T, s *Store) {
+	if err := s.Clear(); err != nil {
+		t.Error(err)
 	}
 }
