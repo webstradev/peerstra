@@ -1,8 +1,10 @@
 package p2p
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"sync"
 )
@@ -45,10 +47,20 @@ type TCPTransport struct {
 }
 
 func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
-	return &TCPTransport{
+	t := &TCPTransport{
 		TCPTransportOpts: opts,
 		rpcChan:          make(chan RPC),
 	}
+
+	if t.Decoder == nil {
+		t.Decoder = NewDefaultDecoder()
+	}
+
+	if t.HandShakeFunc == nil {
+		t.HandShakeFunc = NOPHandshakeFunc
+	}
+
+	return t
 }
 
 func (t *TCPTransport) ListenAndAccept() error {
@@ -61,7 +73,14 @@ func (t *TCPTransport) ListenAndAccept() error {
 
 	go t.startAcceptLoop()
 
+	log.Printf("TCP transport listening on port: %s", t.ListenAddr)
+
 	return nil
+}
+
+// Close implements the Transport interface.
+func (t *TCPTransport) Close() error {
+	return t.listener.Close()
 }
 
 // Consume implements the Transport interface which will return a
@@ -73,6 +92,10 @@ func (t *TCPTransport) Consume() <-chan RPC {
 func (t *TCPTransport) startAcceptLoop() error {
 	for {
 		conn, err := t.listener.Accept()
+		if errors.Is(err, net.ErrClosed) {
+			return nil
+		}
+
 		if err != nil {
 			fmt.Printf("TCP accept error: \n%v", err)
 		}
@@ -86,11 +109,12 @@ func (t *TCPTransport) startAcceptLoop() error {
 func (t *TCPTransport) handleConn(conn net.Conn) {
 	var err error
 	defer func() {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			fmt.Printf("connection closed by peer: %v\n", conn.RemoteAddr())
 			conn.Close()
 			return
 		}
+
 		fmt.Printf("dropping peer connection: %v\n", err)
 		conn.Close()
 	}()

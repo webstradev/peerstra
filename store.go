@@ -117,6 +117,10 @@ func (s *Store) Read(key string) (io.Reader, error) {
 	return buf, err
 }
 
+func (s *Store) Write(key string, r io.Reader) error {
+	return s.writeStream(key, r)
+}
+
 func (s *Store) readStream(key string) (io.ReadCloser, error) {
 	return os.Open(s.fullPathWithRoot(key))
 }

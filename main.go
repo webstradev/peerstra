@@ -1,34 +1,35 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"time"
 
 	"github.com/webstradev/peerstra/p2p"
 )
 
-func OnPeer(peer p2p.Peer) error {
-	fmt.Println("OnPeer called")
-	// peer.Close()
-	return nil
-}
-
 func main() {
-	tcpOpts := p2p.TCPTransportOpts{
-		ListenAddr:    ":3000",
-		HandShakeFunc: p2p.NOPHandshakeFunc,
-		Decoder:       p2p.NewDefaultDecoder(),
-		OnPeer:        OnPeer,
+	tcpTransportOpts := p2p.TCPTransportOpts{
+		ListenAddr: ":3000",
+		// TODO: On Peer Function
 	}
-	tr := p2p.NewTCPTransport(tcpOpts)
+
+	t := p2p.NewTCPTransport(tcpTransportOpts)
+
+	fileServerOpts := FileServerOpts{
+		ListenAddr:        ":3000",
+		StorageRoot:       "3000_network",
+		PathTransformFunc: CASPathTransformFunc,
+		Transport:         t,
+	}
+
+	s := NewFileServer(fileServerOpts)
 
 	go func() {
-		for rpc := range tr.Consume() {
-			log.Printf("Received RPC from %s: %s", rpc.From, rpc.Payload)
-		}
+		time.Sleep(time.Second * 3)
+		s.Stop()
 	}()
 
-	if err := tr.ListenAndAccept(); err != nil {
+	if err := s.Start(); err != nil {
 		log.Fatal(err)
 	}
 
