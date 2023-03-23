@@ -48,7 +48,10 @@ func main() {
 
 	data := bytes.NewReader([]byte("my big data file here!"))
 
-	s2.StoreFile("myprivatedata", data)
+	err := s2.StoreFile("myprivatedata", data)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	select {}
 }

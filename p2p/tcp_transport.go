@@ -17,12 +17,15 @@ type TCPPeer struct {
 	// if we dial a connection => outbound = true
 	// if we accept an incoming connection => outbound = false
 	outbound bool
+
+	Wg *sync.WaitGroup
 }
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
 		Conn:     conn,
 		outbound: outbound,
+		Wg:       &sync.WaitGroup{},
 	}
 }
 
@@ -167,6 +170,10 @@ func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 		}
 
 		rpc.From = conn.RemoteAddr()
+		peer.Wg.Add(1)
+		fmt.Println("waiting till stream is done")
 		t.rpcChan <- rpc
+		peer.Wg.Wait()
+		fmt.Println("stream is done, continuing normal read loop")
 	}
 }
