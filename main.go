@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"time"
@@ -39,9 +40,15 @@ func main() {
 	}()
 
 	go func() {
-		time.Sleep(1 * time.Second)
+		time.Sleep(500 * time.Millisecond)
 		log.Fatal(s2.Start())
 	}()
+
+	time.Sleep(1 * time.Second)
+
+	data := bytes.NewReader([]byte("my big data file here!"))
+
+	s2.StoreFile("myprivatedata", data)
 
 	select {}
 }
