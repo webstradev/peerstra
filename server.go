@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"sync"
+	"time"
 
 	"github.com/webstradev/peerstra/p2p"
 )
@@ -24,7 +24,7 @@ type FileServer struct {
 	FileServerOpts
 
 	peerLock sync.Mutex
-	peers    map[net.Addr]p2p.Peer
+	peers    map[string]p2p.Peer
 
 	store    *Store
 	quitChan chan struct{}
@@ -41,7 +41,7 @@ func NewFileServer(opts FileServerOpts) *FileServer {
 		store:          NewStore(storeOpts),
 		quitChan:       make(chan struct{}),
 		peerLock:       sync.Mutex{},
-		peers:          make(map[net.Addr]p2p.Peer),
+		peers:          make(map[string]p2p.Peer),
 	}
 }
 
@@ -55,7 +55,8 @@ type Message struct {
 }
 
 type MessageStoreFile struct {
-	Key string
+	Key  string
+	Size int64
 }
 
 func (fs *FileServer) broadcast(msg *Message) error {
@@ -72,32 +73,42 @@ func (fs *FileServer) broadcast(msg *Message) error {
 
 func (fs *FileServer) StoreFile(key string, r io.Reader) error {
 	buf := bytes.NewBuffer(nil)
+	tee := io.TeeReader(r, buf)
+
+	size, err := fs.store.Write(key, tee)
+	if err != nil {
+		return err
+	}
+
 	msg := &Message{
 		From: fs.ListenAddr,
 		Payload: MessageStoreFile{
-			Key: key,
+			Key:  key,
+			Size: size,
 		},
 	}
 
-	if err := gob.NewEncoder(buf).Encode(msg); err != nil {
+	msgBuf := bytes.NewBuffer(nil)
+	if err := gob.NewEncoder(msgBuf).Encode(msg); err != nil {
 		return err
 	}
 
 	for _, peer := range fs.peers {
-		if err := peer.Send([]byte(buf.Bytes())); err != nil {
+		if err := peer.Send([]byte(msgBuf.Bytes())); err != nil {
 			return err
 		}
 	}
 
-	// time.Sleep(1 * time.Second)
+	time.Sleep(1 * time.Second)
 
-	// payload := []byte("THIS LARGE FILE")
+	for _, peer := range fs.peers {
+		n, err := io.Copy(peer, buf)
+		if err != nil {
+			return err
+		}
 
-	// for _, peer := range fs.peers {
-	// 	if err := peer.Send(payload); err != nil {
-	// 		return err
-	// 	}
-	// }
+		fmt.Println("received and written byte to disk: ", n)
+	}
 
 	return nil
 }
@@ -106,9 +117,10 @@ func (fs *FileServer) OnPeer(p p2p.Peer) error {
 	fs.peerLock.Lock()
 	defer fs.peerLock.Unlock()
 
-	fs.peers[p.RemoteAddr()] = p
+	fs.peers[p.RemoteAddr().String()] = p
 
-	log.Printf("connected with remote %s", p.RemoteAddr())
+	log.Printf("%s connected with remote %s", fs.ListenAddr, p.RemoteAddr())
+	log.Printf("peers for %s: %+v", fs.ListenAddr, fs.peers)
 	return nil
 }
 
@@ -127,7 +139,10 @@ func (fs *FileServer) loop() {
 				continue
 			}
 
-			fmt.Printf("%+v\n", msg.Payload)
+			if err := fs.handleMessage(rpc.From, &msg); err != nil {
+				log.Println(err)
+				continue
+			}
 
 			peer, ok := fs.peers[rpc.From]
 			if !ok {
@@ -150,15 +165,29 @@ func (fs *FileServer) loop() {
 	}
 }
 
-// func (fs *FileServer) handleMessage(msg *Message) error {
-// 	switch v := msg.Payload.(type) {
-// 	case *DataMessage:
-// 		fmt.Printf("received data message from %s: %s\n", msg.From, v.Key)
-// 		return nil
-// 	}
+func (fs *FileServer) handleMessage(from string, msg *Message) error {
+	switch v := msg.Payload.(type) {
+	case MessageStoreFile:
+		return fs.handleMessageStoreFile(from, &v)
+	default:
+		return fmt.Errorf("unknown message type: %T", v)
+	}
+}
 
-// 	return nil
-// }
+func (fs *FileServer) handleMessageStoreFile(from string, msg *MessageStoreFile) error {
+	peer, ok := fs.peers[from]
+	if !ok {
+		return fmt.Errorf("peer %s not found", from)
+	}
+
+	if _, err := fs.store.Write(msg.Key, io.LimitReader(peer, msg.Size)); err != nil {
+		return err
+	}
+
+	peer.(*p2p.TCPPeer).Wg.Done()
+
+	return nil
+}
 
 func (fs *FileServer) bootstrapNetwork() error {
 	for _, addr := range fs.BootstrapNodes {

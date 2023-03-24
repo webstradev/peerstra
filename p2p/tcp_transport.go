@@ -96,18 +96,6 @@ func (t *TCPTransport) Dial(addr string) error {
 		return err
 	}
 
-	peer := NewTCPPeer(conn, true)
-
-	if err = t.HandShakeFunc(peer); err != nil {
-		return err
-	}
-
-	if t.OnPeer != nil {
-		if err = t.OnPeer(peer); err != nil {
-			return err
-		}
-	}
-
 	go t.handleConn(conn, true)
 
 	return nil
@@ -169,7 +157,7 @@ func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 			return
 		}
 
-		rpc.From = conn.RemoteAddr()
+		rpc.From = conn.RemoteAddr().String()
 		peer.Wg.Add(1)
 		fmt.Println("waiting till stream is done")
 		t.rpcChan <- rpc

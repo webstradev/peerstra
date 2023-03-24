@@ -29,7 +29,7 @@ func TestStore(t *testing.T) {
 	key := "keyforimage"
 	data := []byte("some jpg bytes")
 
-	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+	if _, err := s.writeStream(key, bytes.NewReader(data)); err != nil {
 		t.Error(err)
 	}
 
@@ -57,7 +57,7 @@ func TestDelete(t *testing.T) {
 	key := "keyforimage"
 	data := []byte("some jpg bytes")
 
-	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+	if _, err := s.writeStream(key, bytes.NewReader(data)); err != nil {
 		t.Error(err)
 	}
 
@@ -78,7 +78,7 @@ func TestHas(t *testing.T) {
 		t.Error("expected to not have key")
 	}
 
-	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+	if _, err := s.writeStream(key, bytes.NewReader(data)); err != nil {
 		t.Error(err)
 	}
 
