@@ -72,8 +72,8 @@ func (fs *FileServer) broadcast(msg *Message) error {
 }
 
 func (fs *FileServer) StoreFile(key string, r io.Reader) error {
-	buf := bytes.NewBuffer(nil)
-	tee := io.TeeReader(r, buf)
+	fileBuffer := bytes.NewBuffer(nil)
+	tee := io.TeeReader(r, fileBuffer)
 
 	size, err := fs.store.Write(key, tee)
 	if err != nil {
@@ -102,7 +102,7 @@ func (fs *FileServer) StoreFile(key string, r io.Reader) error {
 	time.Sleep(1 * time.Second)
 
 	for _, peer := range fs.peers {
-		n, err := io.Copy(peer, buf)
+		n, err := io.Copy(peer, fileBuffer)
 		if err != nil {
 			return err
 		}
@@ -180,9 +180,12 @@ func (fs *FileServer) handleMessageStoreFile(from string, msg *MessageStoreFile)
 		return fmt.Errorf("peer %s not found", from)
 	}
 
-	if _, err := fs.store.Write(msg.Key, io.LimitReader(peer, msg.Size)); err != nil {
+	n, err := fs.store.Write(msg.Key, io.LimitReader(peer, msg.Size))
+	if err != nil {
 		return err
 	}
+
+	fmt.Printf("received and written byte to disk: %d\n", n)
 
 	peer.(*p2p.TCPPeer).Wg.Done()
 
