@@ -66,6 +66,7 @@ func (fs *FileServer) broadcast(msg *Message) error {
 	}
 
 	for _, peer := range fs.peers {
+		peer.Send([]byte{p2p.IncomingMessage})
 		if err := peer.Send([]byte(buf.Bytes())); err != nil {
 			return err
 		}
@@ -108,7 +109,7 @@ func (fs *FileServer) Get(key string) (io.Reader, error) {
 		return nil, err
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(1 * time.Millisecond)
 
 	for _, peer := range fs.peers {
 		fileBuffer := bytes.Buffer{}
@@ -147,15 +148,17 @@ func (fs *FileServer) Store(key string, r io.Reader) error {
 	}
 
 	// TODO (@webstradev): use a multi writer
-	time.Sleep(1 * time.Second)
+	time.Sleep(5 * time.Millisecond)
 
 	for _, peer := range fs.peers {
+		peer.Send([]byte{p2p.IncomingStream})
+
 		n, err := io.Copy(peer, fileBuffer)
 		if err != nil {
 			return err
 		}
 
-		fmt.Println("received and written byte to disk: ", n)
+		fmt.Printf("[%s] received and written %d to disk\n", fs.Transport.Addr(), n)
 	}
 
 	return nil
@@ -244,9 +247,9 @@ func (fs *FileServer) handleMessageStoreFile(from string, msg *MessageStoreFile)
 		return err
 	}
 
-	fmt.Printf("received and written byte to disk: %d\n", n)
+	fmt.Printf("[%s] received and written byte to disk: %d\n", fs.Transport.Addr(), n)
 
-	peer.(*p2p.TCPPeer).Wg.Done()
+	peer.CloseStream()
 
 	return nil
 }

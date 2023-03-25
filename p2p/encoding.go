@@ -26,6 +26,18 @@ func NewDefaultDecoder() *DefaultDecoder {
 }
 
 func (dec *DefaultDecoder) Decode(r io.Reader, msg *RPC) error {
+	peek := make([]byte, 1)
+	_, err := r.Read(peek)
+	if err != nil {
+		return err
+	}
+
+	// If we have a stream, we don't need to decode the payload
+	if peek[0] == IncomingStream {
+		msg.Stream = true
+		return nil
+	}
+
 	buf := make([]byte, 1024)
 	n, err := r.Read(buf)
 	if err != nil {
