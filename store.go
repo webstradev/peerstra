@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
@@ -103,26 +102,26 @@ func (s *Store) Delete(key string) error {
 	return os.RemoveAll(fullPath)
 }
 
-func (s *Store) Read(key string) (io.Reader, error) {
-	f, err := s.readStream(key)
-	if err != nil {
-		return nil, err
-	}
-
-	defer f.Close()
-
-	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, f)
-
-	return buf, err
+func (s *Store) Read(key string) (int64, io.Reader, error) {
+	return s.readStream(key)
 }
 
 func (s *Store) Write(key string, r io.Reader) (int64, error) {
 	return s.writeStream(key, r)
 }
 
-func (s *Store) readStream(key string) (io.ReadCloser, error) {
-	return os.Open(s.fullPathWithRoot(key))
+func (s *Store) readStream(key string) (int64, io.ReadCloser, error) {
+	f, err := os.Open(s.fullPathWithRoot(key))
+	if err != nil {
+		return 0, nil, err
+	}
+
+	fi, err := f.Stat()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return fi.Size(), f, nil
 }
 
 func (s *Store) writeStream(key string, r io.Reader) (int64, error) {

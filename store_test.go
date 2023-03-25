@@ -33,7 +33,7 @@ func TestStore(t *testing.T) {
 		t.Error(err)
 	}
 
-	r, err := s.readStream(key)
+	_, r, err := s.readStream(key)
 	if err != nil {
 		t.Error(err)
 	}
