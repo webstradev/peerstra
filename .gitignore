@@ -17,3 +17,4 @@
 .env
 
 bin/
+*_network/
