@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"time"
 
@@ -18,6 +17,7 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 	t := p2p.NewTCPTransport(tcpTransportOpts)
 
 	fileServerOpts := FileServerOpts{
+		EncKey:            newEncryptionKey(),
 		ListenAddr:        listenAddr,
 		StorageRoot:       fmt.Sprintf("%s_network", listenAddr),
 		PathTransformFunc: CASPathTransformFunc,
@@ -55,21 +55,21 @@ func main() {
 	}
 	time.Sleep(1 * time.Millisecond)
 
-	r, err := s2.Get("coolpicture.jpg")
-	if err != nil {
-		log.Fatal(err)
-	}
+	// r, err := s2.Get("coolpicture.jpg")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	b, err := io.ReadAll(r)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// b, err := io.ReadAll(r)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	fmt.Println(string(b))
+	// fmt.Println(string(b))
 
-	if err := s2.Delete("coolpicture.jpg"); err != nil {
-		log.Fatal(err)
-	}
+	// if err := s2.Delete("coolpicture.jpg"); err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	select {}
 }
