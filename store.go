@@ -110,6 +110,45 @@ func (s *Store) Write(key string, r io.Reader) (int64, error) {
 	return s.writeStream(key, r)
 }
 
+func (s *Store) WriteDecrypt(encKey []byte, key string, r io.Reader) (int64, error) {
+	f, err := s.openFileForWriting(key)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	n, err := copyDecrypt(encKey, r, f)
+	return int64(n), err
+}
+
+func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
+	f, err := s.openFileForWriting(key)
+	if err != nil {
+		return 0, err
+	}
+
+	defer f.Close()
+
+	// Copy the buffer into the file
+	return io.Copy(f, r)
+}
+
+func (s *Store) openFileForWriting(key string) (*os.File, error) {
+	pathKey := s.PathTransformFunc(key)
+	pathName := filepath.Join(s.Root, pathKey.PathName)
+
+	// Create necessary directories
+	if err := os.MkdirAll(pathName, os.ModePerm); err != nil {
+		return nil, err
+	}
+
+	// Create the full file path
+	fullPath := filepath.Join(pathName, pathKey.FileName)
+
+	// Create the file and return
+	return os.Create(fullPath)
+}
+
 func (s *Store) readStream(key string) (int64, io.ReadCloser, error) {
 	f, err := os.Open(s.fullPathWithRoot(key))
 	if err != nil {
@@ -122,35 +161,4 @@ func (s *Store) readStream(key string) (int64, io.ReadCloser, error) {
 	}
 
 	return fi.Size(), f, nil
-}
-
-func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
-	pathKey := s.PathTransformFunc(key)
-	pathName := filepath.Join(s.Root, pathKey.PathName)
-
-	// Create necessary directories
-	if err := os.MkdirAll(pathName, os.ModePerm); err != nil {
-		return 0, err
-	}
-
-	// Create the full file path
-	fullPath := filepath.Join(pathName, pathKey.FileName)
-
-	// Create the file
-	f, err := os.Create(fullPath)
-	if err != nil {
-		return 0, err
-	}
-
-	defer f.Close()
-
-	// Copy the buffer into the file
-	n, err := io.Copy(f, r)
-	if err != nil {
-		return 0, err
-	}
-
-	log.Printf("wrote %d bytes to disk at: %s", n, fullPath)
-
-	return n, nil
 }

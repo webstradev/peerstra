@@ -123,7 +123,7 @@ func (fs *FileServer) Get(key string) (io.Reader, error) {
 			return nil, err
 		}
 
-		n, err := fs.store.Write(key, io.LimitReader(peer, fileSize))
+		n, err := fs.store.WriteDecrypt(fs.EncKey, key, io.LimitReader(peer, fileSize))
 		if err != nil {
 			return nil, err
 		}
@@ -184,19 +184,22 @@ func (fs *FileServer) Store(key string, r io.Reader) error {
 		return err
 	}
 
-	// TODO (@webstradev): use a multi writer
 	time.Sleep(5 * time.Millisecond)
 
+	peers := []io.Writer{}
+
 	for _, peer := range fs.peers {
-		peer.Send([]byte{p2p.IncomingStream})
-
-		n, err := copyEncrypt(fs.EncKey, fileBuffer, peer)
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("[%s] received and written %d to disk\n", fs.Transport.Addr(), n)
+		peers = append(peers, peer)
 	}
+	mw := io.MultiWriter(peers...)
+	mw.Write([]byte{p2p.IncomingStream})
+
+	n, err := copyEncrypt(fs.EncKey, fileBuffer, mw)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("[%s] received and written %d to disk\n", fs.Transport.Addr(), n)
 
 	return nil
 }
