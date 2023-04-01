@@ -105,7 +105,7 @@ func (fs *FileServer) Get(key string) (io.Reader, error) {
 	msg := &Message{
 		From: fs.ListenAddr,
 		Payload: MessageGetFile{
-			Key: key,
+			Key: hashKey(key),
 		},
 	}
 
@@ -175,7 +175,7 @@ func (fs *FileServer) Store(key string, r io.Reader) error {
 	msg := &Message{
 		From: fs.ListenAddr,
 		Payload: MessageStoreFile{
-			Key:  key,
+			Key:  hashKey(key),
 			Size: size + 16,
 		},
 	}

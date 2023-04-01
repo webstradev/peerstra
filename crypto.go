@@ -3,7 +3,9 @@ package main
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
 	"crypto/rand"
+	"encoding/hex"
 	"io"
 )
 
@@ -48,6 +50,11 @@ func copyDecrypt(key []byte, src io.Reader, dst io.Writer) (int, error) {
 	}
 
 	return copyStream(cipher.NewCTR(block, iv), block.BlockSize(), src, dst)
+}
+
+func hashKey(key string) string {
+	hash := md5.Sum([]byte(key))
+	return hex.EncodeToString(hash[:])
 }
 
 func newEncryptionKey() []byte {
