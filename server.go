@@ -62,6 +62,7 @@ type Message struct {
 }
 
 type MessageStoreFile struct {
+	ID   string
 	Key  string
 	Size int64
 }
@@ -95,6 +96,7 @@ func (fs *FileServer) stream(msg *Message) error {
 }
 
 type MessageGetFile struct {
+	ID  string
 	Key string
 }
 
@@ -110,6 +112,7 @@ func (fs *FileServer) Get(key string) (io.Reader, error) {
 	msg := &Message{
 		From: fs.ListenAddr,
 		Payload: MessageGetFile{
+			ID:  fs.ID,
 			Key: hashKey(key),
 		},
 	}
@@ -143,6 +146,7 @@ func (fs *FileServer) Get(key string) (io.Reader, error) {
 }
 
 type MessageDeleteFile struct {
+	ID  string
 	Key string
 }
 
@@ -156,6 +160,7 @@ func (fs *FileServer) Delete(key string) error {
 	msg := &Message{
 		From: fs.ListenAddr,
 		Payload: MessageDeleteFile{
+			ID:  fs.ID,
 			Key: key,
 		},
 	}
@@ -180,6 +185,7 @@ func (fs *FileServer) Store(key string, r io.Reader) error {
 	msg := &Message{
 		From: fs.ListenAddr,
 		Payload: MessageStoreFile{
+			ID:   fs.ID,
 			Key:  hashKey(key),
 			Size: size + 16,
 		},
@@ -260,13 +266,13 @@ func (fs *FileServer) handleMessage(from string, msg *Message) error {
 
 func (fs *FileServer) handleMessageGetFile(from string, msg *MessageGetFile) error {
 	fmt.Printf("[%s] received request for file (%s) from peer: %s\n", fs.Transport.Addr(), msg.Key, from)
-	if !fs.store.Has(fs.ID, msg.Key) {
+	if !fs.store.Has(msg.ID, msg.Key) {
 		return fmt.Errorf("[]%s file (%s) not found locally", fs.Transport.Addr(), msg.Key)
 	}
 
 	fmt.Printf("[%s] serving file (%s) over the network\n", fs.Transport.Addr(), msg.Key)
 
-	size, r, err := fs.store.Read(fs.ID, msg.Key)
+	size, r, err := fs.store.Read(msg.ID, msg.Key)
 	if err != nil {
 		return err
 	}
@@ -301,7 +307,7 @@ func (fs *FileServer) handleMessageStoreFile(from string, msg *MessageStoreFile)
 		return fmt.Errorf("peer %s not found", from)
 	}
 
-	n, err := fs.store.Write(fs.ID, msg.Key, io.LimitReader(peer, msg.Size))
+	n, err := fs.store.Write(msg.ID, msg.Key, io.LimitReader(peer, msg.Size))
 	if err != nil {
 		return err
 	}
@@ -315,7 +321,7 @@ func (fs *FileServer) handleMessageStoreFile(from string, msg *MessageStoreFile)
 
 func (fs *FileServer) handleMessageDeleteFile(from string, msg *MessageDeleteFile) error {
 	fmt.Printf("[%s] received delete message from peer: %s\n", fs.Transport.Addr(), from)
-	if err := fs.store.Delete(fs.ID, msg.Key); err != nil {
+	if err := fs.store.Delete(msg.ID, msg.Key); err != nil {
 		return err
 	}
 
