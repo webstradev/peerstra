@@ -29,11 +29,11 @@ func TestStore(t *testing.T) {
 	key := "keyforimage"
 	data := []byte("some jpg bytes")
 
-	if _, err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+	if _, err := s.writeStream("hello", key, bytes.NewReader(data)); err != nil {
 		t.Error(err)
 	}
 
-	_, r, err := s.readStream(key)
+	_, r, err := s.readStream("hello", key)
 	if err != nil {
 		t.Error(err)
 	}
@@ -57,11 +57,11 @@ func TestDelete(t *testing.T) {
 	key := "keyforimage"
 	data := []byte("some jpg bytes")
 
-	if _, err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+	if _, err := s.writeStream("hello", key, bytes.NewReader(data)); err != nil {
 		t.Error(err)
 	}
 
-	if err := s.Delete(key); err != nil {
+	if err := s.Delete("hello", key); err != nil {
 		t.Error(err)
 	}
 }
@@ -74,20 +74,21 @@ func TestHas(t *testing.T) {
 	key := "keyforimage"
 	data := []byte("some jpg bytes")
 
-	if s.Has(key) {
+	if s.Has("", key) {
 		t.Error("expected to not have key")
 	}
 
-	if _, err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+	if _, err := s.writeStream("hello", key, bytes.NewReader(data)); err != nil {
 		t.Error(err)
 	}
 
-	if !s.Has(key) {
+	if !s.Has("hello", key) {
 		t.Error("expected to have key")
 	}
 }
 
 func newTestStore() *Store {
+
 	opts := StoreOpts{
 		Root:              "tests",
 		PathTransformFunc: CASPathTransformFunc,

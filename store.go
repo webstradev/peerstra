@@ -78,22 +78,22 @@ func NewStore(opts StoreOpts) *Store {
 	}
 }
 
-func (s *Store) fullPathWithRoot(key string) string {
+func (s *Store) fullPathWithRoot(id, key string) string {
 	pathKey := s.PathTransformFunc(key)
-	return filepath.Join(s.Root, pathKey.FilePath())
+	return filepath.Join(s.Root, id, pathKey.FilePath())
 }
 
 func (s *Store) Clear() error {
 	return os.RemoveAll(s.Root)
 }
 
-func (s *Store) Has(key string) bool {
-	_, err := os.Stat(s.fullPathWithRoot(key))
+func (s *Store) Has(id, key string) bool {
+	_, err := os.Stat(s.fullPathWithRoot(id, key))
 	return !errors.Is(err, fs.ErrNotExist)
 }
 
-func (s *Store) Delete(key string) error {
-	fullPath := s.fullPathWithRoot(key)
+func (s *Store) Delete(id, key string) error {
+	fullPath := s.fullPathWithRoot(id, key)
 
 	defer func() {
 		log.Printf("deleted [%s] from disk", fullPath)
@@ -102,16 +102,16 @@ func (s *Store) Delete(key string) error {
 	return os.RemoveAll(fullPath)
 }
 
-func (s *Store) Read(key string) (int64, io.Reader, error) {
-	return s.readStream(key)
+func (s *Store) Read(id, key string) (int64, io.Reader, error) {
+	return s.readStream(id, key)
 }
 
-func (s *Store) Write(key string, r io.Reader) (int64, error) {
-	return s.writeStream(key, r)
+func (s *Store) Write(id, key string, r io.Reader) (int64, error) {
+	return s.writeStream(id, key, r)
 }
 
-func (s *Store) WriteDecrypt(encKey []byte, key string, r io.Reader) (int64, error) {
-	f, err := s.openFileForWriting(key)
+func (s *Store) WriteDecrypt(encKey []byte, id, key string, r io.Reader) (int64, error) {
+	f, err := s.openFileForWriting(id, key)
 	if err != nil {
 		return 0, err
 	}
@@ -121,8 +121,8 @@ func (s *Store) WriteDecrypt(encKey []byte, key string, r io.Reader) (int64, err
 	return int64(n), err
 }
 
-func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
-	f, err := s.openFileForWriting(key)
+func (s *Store) writeStream(id, key string, r io.Reader) (int64, error) {
+	f, err := s.openFileForWriting(id, key)
 	if err != nil {
 		return 0, err
 	}
@@ -133,9 +133,9 @@ func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
 	return io.Copy(f, r)
 }
 
-func (s *Store) openFileForWriting(key string) (*os.File, error) {
+func (s *Store) openFileForWriting(id, key string) (*os.File, error) {
 	pathKey := s.PathTransformFunc(key)
-	pathName := filepath.Join(s.Root, pathKey.PathName)
+	pathName := filepath.Join(s.Root, id, pathKey.PathName)
 
 	// Create necessary directories
 	if err := os.MkdirAll(pathName, os.ModePerm); err != nil {
@@ -149,8 +149,8 @@ func (s *Store) openFileForWriting(key string) (*os.File, error) {
 	return os.Create(fullPath)
 }
 
-func (s *Store) readStream(key string) (int64, io.ReadCloser, error) {
-	f, err := os.Open(s.fullPathWithRoot(key))
+func (s *Store) readStream(id, key string) (int64, io.ReadCloser, error) {
+	f, err := os.Open(s.fullPathWithRoot(id, key))
 	if err != nil {
 		return 0, nil, err
 	}
