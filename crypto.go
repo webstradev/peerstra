@@ -9,6 +9,7 @@ import (
 	"io"
 )
 
+// Helper function to generate a unique id
 func generateID() string {
 	buf := make([]byte, 32)
 	io.ReadFull(rand.Reader, buf)
